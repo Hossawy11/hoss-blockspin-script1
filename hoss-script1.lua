@@ -1,4 +1,4 @@
--- [[ HOSS MENU v3 - قايمة حوس المطور مع الـ Skeleton ESP والـ FOV ]] --
+-- [[ HOSS MENU v4 - قايمة حوس المطور مع الـ Box ESP والـ FOV ]] --
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -21,7 +21,7 @@ FovCircle.Radius = _G.FovRadius
 
 -- إنشاء الواجهة الرسومية (UI)
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "HossMenuV3"
+ScreenGui.Name = "HossMenuV4"
 ScreenGui.Parent = game:CoreGui
 ScreenGui.ResetOnSpawn = false
 
@@ -38,7 +38,7 @@ MainFrame.Parent = ScreenGui
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Title.Text = "★ قايمة حوس V3 | SKELETON ★"
+Title.Text = "★ قايمة حوس V4 | BOX ESP ★"
 Title.TextColor3 = Color3.fromRGB(0, 255, 100)
 Title.TextSize = 16
 Title.Font = Enum.Font.SourceSansBold
@@ -101,14 +101,14 @@ local DecreaseFov = CreateButton("- تصغير الفوف", UDim2.new(0.53, 0, 0
     end
 end)
 
--- 2. زرار الـ Skeleton & Inventory ESP
-local EspBtn = CreateButton("Skeleton ESP: OFF", UDim2.new(0.05, 0, 0.55, 0), nil, function(btn)
+-- 2. زرار الـ Box & Inventory ESP
+local EspBtn = CreateButton("Box ESP: OFF", UDim2.new(0.05, 0, 0.55, 0), nil, function(btn)
     _G.EspInventory = not _G.EspInventory
     if _G.EspInventory then
-        btn.Text = "Skeleton ESP: ON"
+        btn.Text = "Box ESP: ON"
         btn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
     else
-        btn.Text = "Skeleton ESP: OFF"
+        btn.Text = "Box ESP: OFF"
         btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
     end
 end)
@@ -130,7 +130,7 @@ OpenBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = true
 end)
 
---- [[ نظام الـ Skeleton ESP والـ Silent Aim البرمجي ]] ---
+--- [[ نظام الـ Box ESP والـ Silent Aim البرمجي ]] ---
 
 RunService.RenderStepped:Connect(function()
     FovCircle.Position = Vector2.new(Mouse.X, Mouse.Y + 36)
@@ -154,7 +154,7 @@ local function getClosestPlayerInFov()
     return closestPlayer
 end
 
--- تعديل مسار الطلقات
+-- تعديل مسار الطلقات (Silent Aim)
 local Namecall
 Namecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
@@ -173,128 +173,83 @@ Namecall = hookmetamethod(game, "__namecall", function(self, ...)
     return Namecall(self, ...)
 end)
 
--- مصفوفة للاحتفاظ بخطوط الهيكل العظمي لكل لاعب
-local Skeletons = {}
+-- مصفوفة للاحتفاظ بالمربعات (Boxes) لكل لاعب
+local Boxes = {}
 
-local function CreateLine()
-    local Line = Drawing.new("Line")
-    Line.Thickness = 2
-    Line.Color = Color3.fromRGB(0, 255, 100) -- اللون الأخضر الفوسفوري
-    Line.Transparency = 1
-    Line.Visible = false
-    return Line
+local function CreateSquare()
+    local Box = Drawing.new("Square")
+    Box.Thickness = 2
+    Box.Color = Color3.fromRGB(0, 255, 100) -- اللون الأخضر
+    Box.Filled = false
+    Box.Transparency = 1
+    Box.Visible = false
+    return Box
 end
 
-local function ClearSkeleton(player)
-    if Skeletons[player] then
-        for _, line in pairs(Skeletons[player].Lines) do
-            line:Destroy()
-        end
-        if Skeletons[player].Text then
-            Skeletons[player].Text:Destroy()
-        end
-        Skeletons[player] = nil
+local function ClearBox(player)
+    if Boxes[player] then
+        if Boxes[player].Box then Boxes[player].Box:Destroy() end
+        if Boxes[player].Text then Boxes[player].Text:Destroy() end
+        Boxes[player] = nil
     end
 end
 
--- ميكانيكية رسم وتحديث الهيكل العظمي مع الحركة
+-- ميكانيكية رسم المربع وتحديثه حول العدو
 RunService.RenderStepped:Connect(function()
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
-            if _G.EspInventory and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+            if _G.EspInventory and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Head") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
                 local char = player.Character
                 
-                -- تجهيز الخطوط لو مش موجودة
-                if not Skeletons[player] then
-                    Skeletons[player] = {
-                        Lines = {
-                            HeadToTorso = CreateLine(),
-                            LeftArm = CreateLine(),
-                            RightArm = CreateLine(),
-                            LeftLeg = CreateLine(),
-                            RightLeg = CreateLine(),
-                            Spine = CreateLine()
-                        },
+                if not Boxes[player] then
+                    Boxes[player] = {
+                        Box = CreateSquare(),
                         Text = Drawing.new("Text")
                     }
-                    Skeletons[player].Text.Size = 14
-                    Skeletons[player].Text.Color = Color3.fromRGB(255, 255, 255)
-                    Skeletons[player].Text.Center = true
-                    Skeletons[player].Text.Outline = true
-                    Skeletons[player].Text.OutlineColor = Color3.fromRGB(0, 0, 0)
+                    Boxes[player].Text.Size = 14
+                    Boxes[player].Text.Color = Color3.fromRGB(255, 255, 255)
+                    Boxes[player].Text.Center = true
+                    Boxes[player].Text.Outline = true
+                    Boxes[player].Text.OutlineColor = Color3.fromRGB(0, 0, 0)
                 end
                 
-                local lines = Skeletons[player].Lines
-                local text = Skeletons[player].Text
+                local box = Boxes[player].Box
+                local text = Boxes[player].Text
                 
-                -- تحديد المفاصل حسب نوع الشخصية R6 أو R15
-                local head = char:FindFirstChild("Head")
-                local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
-                local leftShoulder = char:FindFirstChild("LeftUpperArm") or char:FindFirstChild("Left Arm")
-                local rightShoulder = char:FindFirstChild("RightUpperArm") or char:FindFirstChild("Right Arm")
-                local leftHip = char:FindFirstChild("LeftUpperLeg") or char:FindFirstChild("Left Leg")
-                local rightHip = char:FindFirstChild("RightUpperLeg") or char:FindFirstChild("Right Leg")
-                local lowerTorso = char:FindFirstChild("LowerTorso") or torso
+                -- حساب زوايا المربع بناءً على مكان اللاعب وحجم جسمه
+                local head = char.Head
+                local hrp = char.HumanoidRootPart
                 
-                if head and torso and leftShoulder and rightShoulder and leftHip and rightHip then
-                    -- تحويل الإحداثيات من العالم الافتراضي إلى الشاشة
-                    local headPos, headOn = Camera:WorldToViewportPoint(head.Position)
-                    local torsoPos, torsoOn = Camera:WorldToViewportPoint(torso.Position)
-                    local leftArmPos, leftArmOn = Camera:WorldToViewportPoint(leftShoulder.Position)
-                    local rightArmPos, rightArmOn = Camera:WorldToViewportPoint(rightShoulder.Position)
-                    local leftLegPos, leftLegOn = Camera:WorldToViewportPoint(leftHip.Position)
-                    local rightLegPos, rightLegOn = Camera:WorldToViewportPoint(rightHip.Position)
-                    local bTorsoPos, bTorsoOn = Camera:WorldToViewportPoint(lowerTorso.Position)
+                local hrpPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+                local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                local legPos = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+                
+                if onScreen then
+                    -- حساب الطول والعرض للمربع ليناسب حجم اللاعب حسب بعده وقربه
+                    local height = math.abs(headPos.Y - legPos.Y)
+                    local width = height / 1.5
                     
-                    if headOn or torsoOn then
-                        -- رسم الخطوط وتوصيل المفاصل ببعضها
-                        lines.HeadToTorso.From = Vector2.new(headPos.X, headPos.Y)
-                        lines.HeadToTorso.To = Vector2.new(torsoPos.X, torsoPos.Y)
-                        lines.HeadToTorso.Visible = true
-                        
-                        lines.Spine.From = Vector2.new(torsoPos.X, torsoPos.Y)
-                        lines.Spine.To = Vector2.new(bTorsoPos.X, bTorsoPos.Y)
-                        lines.Spine.Visible = true
-                        
-                        lines.LeftArm.From = Vector2.new(torsoPos.X, torsoPos.Y)
-                        lines.LeftArm.To = Vector2.new(leftArmPos.X, leftArmPos.Y)
-                        lines.LeftArm.Visible = true
-                        
-                        lines.RightArm.From = Vector2.new(torsoPos.X, torsoPos.Y)
-                        lines.RightArm.To = Vector2.new(rightArmPos.X, rightArmPos.Y)
-                        lines.RightArm.Visible = true
-                        
-                        lines.LeftLeg.From = Vector2.new(bTorsoPos.X, bTorsoPos.Y)
-                        lines.LeftLeg.To = Vector2.new(leftLegPos.X, leftLegPos.Y)
-                        lines.LeftLeg.Visible = true
-                        
-                        lines.RightLeg.From = Vector2.new(bTorsoPos.X, bTorsoPos.Y)
-                        lines.RightLeg.To = Vector2.new(rightLegPos.X, rightLegPos.Y)
-                        lines.RightLeg.Visible = true
-                        
-                        -- تحديث نص السلاح والمسافة والاسم تحت الهيكل العظمي
-                        local tool = char:FindFirstChildOfClass("Tool")
-                        local weapon = tool and tool.Name or "قبضة اليد ✊"
-                        local distance = math.floor((LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and (LocalPlayer.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude) or 0)
-                        
-                        text.Position = Vector2.new(bTorsoPos.X, bTorsoPos.Y + 20)
-                        text.Text = string.format("%s\n[ سلاح: %s ]\n[ %d م ]", player.Name, weapon, distance)
-                        text.Visible = true
-                    else
-                        -- إخفاء الخطوط لو اللاعب برة الشاشة
-                        for _, line in pairs(lines) do line.Visible = false end
-                        text.Visible = false
-                    end
+                    box.Size = Vector2.new(width, height)
+                    box.Position = Vector2.new(hrpPos.X - width / 2, hrpPos.Y - height / 2)
+                    box.Visible = true
+                    
+                    -- تحديث بيانات الأسلحة والمسافة تحت المربع
+                    local tool = char:FindFirstChildOfClass("Tool")
+                    local weapon = tool and tool.Name or "قبضة اليد ✊"
+                    local distance = math.floor((LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and (LocalPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude) or 0)
+                    
+                    text.Position = Vector2.new(hrpPos.X, hrpPos.Y + (height / 2) + 5)
+                    text.Text = string.format("%s\n[ سلاح: %s ]\n[ %d م ]", player.Name, weapon, distance)
+                    text.Visible = true
                 else
-                    for _, line in pairs(lines) do line.Visible = false end
+                    box.Visible = false
                     text.Visible = false
                 end
             else
-                ClearSkeleton(player)
+                ClearBox(player)
             end
         end
     end
 end)
 
--- تنظيف البيانات لو لاعب خرج من السيرفر
-Players.PlayerRemoving:Connect(ClearSkeleton)
+Players.PlayerRemoving:Connect(ClearBox)
